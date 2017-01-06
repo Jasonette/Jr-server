@@ -1,0 +1,1 @@
+json.partial! "jrs/jr", jr: @jr

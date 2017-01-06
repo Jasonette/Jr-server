@@ -1,0 +1,20 @@
+<%= form_for(jr) do |f| %>
+  <% if jr.errors.any? %>
+    <div id="error_explanation">
+      <h2><%= pluralize(jr.errors.count, "error") %> prohibited this jr from being saved:</h2>
+
+      <ul>
+      <% jr.errors.full_messages.each do |message| %>
+        <li><%= message %></li>
+      <% end %>
+      </ul>
+    </div>
+  <% end %>
+  <div class="field">
+    <%= f.label :url %>
+    <%= f.text_field :url %>
+  </div>
+  <div class="actions">
+    <%= f.submit %>
+  </div>
+<% end %>

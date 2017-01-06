@@ -1,0 +1,1 @@
+json.array! @jrs, partial: 'jrs/jr', as: :jr
