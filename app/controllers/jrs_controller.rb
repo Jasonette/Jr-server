@@ -134,34 +134,42 @@ class JrsController < ApplicationController
           # 3. "git add ."
           # 4. "git commit -am "updating to version #{version}"
           # 5. "git push origin master"
+          if res["platform"].downcase == 'ios'
+            org = "JasonExtension-iOS"
+          elsif res["platform"].downcase == 'android'
+            org = "JasonExtension-Android"
+          else
+            # shouldn't happen
+            org = nil
+          end
+          
+          if org
+            name = "#{gh[:user]}_#{gh[:repo]}"
+            registry_git_url = "https://github.com/#{org}/#{name}.git"
 
-          org = "JasonExtension-iOS"
-          name = "#{gh[:user]}_#{gh[:repo]}"
-          registry_git_url = "https://github.com/#{org}/#{name}.git"
+            # 1. clone
+            g = Git.clone(registry_git_url, name, :path => '/tmp')
 
-          # 1. clone
-          g = Git.clone(registry_git_url, name, :path => '/tmp')
+            g.chdir do
+              # 2. pull
+              g.pull git_url
 
-          g.chdir do
-            # 2. pull
-            g.pull git_url
+              g.config('user.name', 'Jr')
+              g.config('user.email', 'jr@jasonette.com')
 
-            g.config('user.name', 'Jr')
-            g.config('user.email', 'jr@jasonette.com')
+              # 3. add
+              g.add
 
-            # 3. add
-            g.add
-
-            if g.status.changed.count > 0
-              # 4. commit
-              g.commit_all "Updating to version #{version}"
-              # 5. push
-              g.push
+              if g.status.changed.count > 0
+                # 4. commit
+                g.commit_all "Updating to version #{version}"
+                # 5. push
+                g.push
+              end
             end
+            @jr.update_attributes(name: res["name"], platform: res["platform"].downcase, description: res["description"], classname: res["classname"], version: version)
           end
 
-
-          @jr.update_attributes(name: res["name"], platform: res["platform"].downcase, description: res["description"], classname: res["classname"], version: version)
         else
 
           # New entry. Fork
