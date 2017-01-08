@@ -127,6 +127,7 @@ class JrsController < ApplicationController
         # valid
         if @jr
           version = @jr["version"] + 1
+=begin
 
           # Existing entry. Need to:
           # 1. "git clone" JasonExtension registry repo locally
@@ -144,6 +145,7 @@ class JrsController < ApplicationController
           end
           
           if org
+
             name = "#{gh[:user]}_#{gh[:repo]}"
             registry_git_url = "https://github.com/#{org}/#{name}.git"
 
@@ -174,6 +176,8 @@ class JrsController < ApplicationController
             end
             @jr.update_attributes(name: res["name"], platform: res["platform"].downcase, description: res["description"], classname: res["classname"], version: version)
           end
+=end
+          @jr.update_attributes(name: res["name"], platform: res["platform"].downcase, description: res["description"], classname: res["classname"], version: version)
 
         else
 
