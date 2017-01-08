@@ -147,6 +147,11 @@ class JrsController < ApplicationController
             name = "#{gh[:user]}_#{gh[:repo]}"
             registry_git_url = "https://github.com/#{org}/#{name}.git"
 
+            # 0. Check if the directory already exists, and if so, delete it first.
+            if File.exists? "/tmp/#{name}"
+              FileUtils.remove_dir "/tmp/#{name}"
+            end
+
             # 1. clone
             g = Git.clone(registry_git_url, name, :path => '/tmp')
 
