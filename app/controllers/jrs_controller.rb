@@ -73,7 +73,6 @@ class JrsController < ApplicationController
       reasons.push "'platform' field should exist." 
     end
 
-=begin
     if res.has_key? "version"
       # the version must be integer
       if res["version"].is_a? Numeric
@@ -87,7 +86,6 @@ class JrsController < ApplicationController
     else
       reasons.push "'version' field should exist." 
     end
-=end
 
     # return reasons array
     return reasons
@@ -104,15 +102,26 @@ class JrsController < ApplicationController
     puts jr_params[:name]
     gh = github(jr_params[:url])
     if gh
-      json_url = "https://raw.githubusercontent.com/#{gh[:user]}/#{gh[:repo]}/master/jr.json?#{Time.now.to_i}"
-      response = HTTParty.get(json_url, headers: {"Cache-Control" => "no-cache, no-store, max-age=0, must-revalidate"})
 
-      puts "RESPONSE = #{response.inspect}"
+      org = "JasonExtension"
+      name = "#{gh[:user]}_#{gh[:repo]}"
+      git_url = "https://github.com/#{gh[:user]}/#{gh[:repo]}.git"
+      registry_git_url = "https://github.com/#{org}/#{name}.git"
 
-      git_url = "#{jr_params[:url]}.git"
+      # 1. if file exists, delete it first
+      if File.exists? "/tmp/#{name}"
+        FileUtils.remove_dir "/tmp/#{name}"
+      end
 
+      # 2. clone
+      g = Git.clone(git_url, name, :path => '/tmp')
+      file = File.read("/tmp/#{name}/jr.json")
+      res = JSON.parse(file)
 
-      res = JSON.parse(response)
+      #json_url = "https://raw.githubusercontent.com/#{gh[:user]}/#{gh[:repo]}/master/jr.json?#{Time.now.to_i}"
+      #response = HTTParty.get(json_url, headers: {"Cache-Control" => "no-cache, no-store, max-age=0, must-revalidate"})
+      #puts "RESPONSE = #{response.inspect}"
+      #res = JSON.parse(response)
 
 			@jr = Jr.find_by(url: jr_params[:url])
 
@@ -125,79 +134,33 @@ class JrsController < ApplicationController
         end
       else
         # valid
+        client = Octokit::Client.new :access_token => ENV["GH_TOKEN"]
+        user = client.user
+        puts user.login
+
         if @jr
-          version = @jr["version"] + 1
-=begin
+          # if already exists, delete the registry repo first
+          repo_name_to_delete = "https://github.com/JasonExtension/#{gh[:user]}_#{gh[:repo]}"
+          repo_to_delete = Octokit::Repository.from_url repo_name_to_delete
+          client.delete_repository repo_to_delete
+        end
 
-          # Existing entry. Need to:
-          # 1. "git clone" JasonExtension registry repo locally
-          # 2. "git pull" user repo
-          # 3. "git add ."
-          # 4. "git commit -am "updating to version #{version}"
-          # 5. "git push origin master"
-          if res["platform"].downcase == 'ios'
-            org = "JasonExtension-iOS"
-          elsif res["platform"].downcase == 'android'
-            org = "JasonExtension-Android"
-          else
-            # shouldn't happen
-            org = nil
-          end
-          
-          if org
+        # fork
+        repo = Octokit::Repository.from_url jr_params[:url]
+        forked = client.fork repo, :organization => "JasonExtension"
+        puts "Forked = #{forked.inspect}"
 
-            name = "#{gh[:user]}_#{gh[:repo]}"
-            registry_git_url = "https://github.com/#{org}/#{name}.git"
+        # rename the repo to avoid redundancy
+        # JasonExtension/JasonDemoAction becomes JasonExtension/gliechtenstein_JasonDemoAction 
+        repo = Octokit::Repository.from_url forked[:html_url]
+        edited = client.edit repo, :name => "#{forked['parent']['owner']['login']}_#{forked["name"]}"
+        puts "Edited = #{edited.inspect}"
 
-            # 0. Check if the directory already exists, and if so, delete it first.
-            if File.exists? "/tmp/#{name}"
-              FileUtils.remove_dir "/tmp/#{name}"
-            end
-
-            # 1. clone
-            g = Git.clone(registry_git_url, name, :path => '/tmp')
-
-            g.chdir do
-              # 2. pull
-              g.pull git_url
-
-              g.config('user.name', 'Jr')
-              g.config('user.email', 'jr@jasonette.com')
-
-              # 3. add
-              g.add
-
-              if g.status.changed.count > 0
-                # 4. commit
-                g.commit_all "Updating to version #{version}"
-                # 5. push
-                g.push
-              end
-            end
-            @jr.update_attributes(name: res["name"], platform: res["platform"].downcase, description: res["description"], classname: res["classname"], version: version)
-          end
-=end
+        version = res["version"]
+        if @jr
           @jr.update_attributes(name: res["name"], platform: res["platform"].downcase, description: res["description"], classname: res["classname"], version: version)
-
         else
-
-          # New entry. Fork
-          client = Octokit::Client.new :access_token => ENV["GH_TOKEN"]
-          user = client.user
-          puts user.login
-
-          # fork the repo
-          repo = Octokit::Repository.from_url jr_params[:url]
-          forked = client.fork repo, :organization => "JasonExtension-iOS"
-          puts "Forked = #{forked.inspect}"
-
-          # rename the repo to avoid redundancy
-          # JasonExtension-iOS/JasonDemoAction becomes JasonExtension-iOS/gliechtenstein_JasonDemoAction 
-          repo = Octokit::Repository.from_url forked[:html_url]
-          edited = client.edit repo, :name => "#{forked['parent']['owner']['login']}_#{forked["name"]}"
-          puts "Edited = #{edited.inspect}"
-
-          @jr = Jr.new(url: jr_params[:url], name: res["name"], platform: res["platform"].downcase, description: res["description"], classname: res["classname"], version: 1) 
+          @jr = Jr.new(url: jr_params[:url], name: res["name"], platform: res["platform"].downcase, description: res["description"], classname: res["classname"], version: res["version"]) 
           @jr.save
         end
 
