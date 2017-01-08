@@ -1,7 +1,7 @@
 # Jr-server
 >Jason Registry Server
 
-Prototype for Jason Registry backend.
+Prototype for Jason Registry backend for [Jr client website](https://github.com/Jasonette/Jr)
 
 ## Features
 
