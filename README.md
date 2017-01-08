@@ -33,7 +33,7 @@ Prototype for Jason Registry backend for [Jr client website](https://github.com/
 		- If the github repo is not registered, it creates an entry with version 1.
 
 ## Challenges
-Currently the challenge is the part `3B` from the [How it works](#how_it_works) section above. So far it successfully does all `git clone`, `git pull`, `git add`, and `git commit`, but unable to `git push`, beause of credntial issues.
+Currently the challenge is the part `3B` from the [How it works](#how-it-works) section above. So far it successfully does all `git clone`, `git pull`, `git add`, and `git commit`, but unable to `git push`, beause of credntial issues.
 
 Need to figure out whether:
 
