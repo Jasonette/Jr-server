@@ -139,6 +139,7 @@ GEM
     sawyer (0.8.1)
       addressable (>= 2.3.5, < 2.6)
       faraday (~> 0.8, < 1.0)
+    semantic (1.6.0)
     spring (2.0.0)
       activesupport (>= 4.2)
     spring-watcher-listen (2.0.1)
@@ -189,6 +190,7 @@ DEPENDENCIES
   rack-cors
   rails (~> 5.0.1)
   sass-rails (~> 5.0)
+  semantic
   spring
   spring-watcher-listen (~> 2.0.0)
   sqlite3

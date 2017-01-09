@@ -62,3 +62,4 @@ gem 'httparty'
 gem 'rack-cors', :require => 'rack/cors'
 gem "octokit", "~> 4.0"
 gem 'git'
+gem 'semantic'

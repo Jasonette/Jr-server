@@ -75,13 +75,16 @@ class JrsController < ApplicationController
 
     if res.has_key? "version"
       # the version must be integer
-      if res["version"].is_a? Numeric
-        # the version must be greater than the last one
-        if senior and (res["version"] <= senior["version"])
-          reasons.push "the 'version' must be greater than the last version: #{senior['version']}"
+      begin
+        new_version = Semantic::Version.new res["version"].to_s
+        if senior
+          old_version = Semantic::Version.new senior["version"].to_s
+          if new_version <= old_version
+            reasons.push "the 'version' must be greater than the last version: #{senior['version']}"
+          end
         end
-      else
-        reasons.push "'version' should be an integer."
+      rescue
+        reasons.push "Please use semantic versioning (Example: '1.0.1'). See http://semver.org/ for more details."
       end
     else
       reasons.push "'version' field should exist." 
@@ -156,17 +159,33 @@ class JrsController < ApplicationController
         edited = client.edit repo, :name => "#{forked['parent']['owner']['login']}_#{forked["name"]}"
         puts "Edited = #{edited.inspect}"
 
-        version = res["version"]
-        if @jr
-          @jr.update_attributes(name: res["name"], platform: res["platform"].downcase, description: res["description"], classname: res["classname"], version: version)
-        else
-          @jr = Jr.new(url: jr_params[:url], name: res["name"], platform: res["platform"].downcase, description: res["description"], classname: res["classname"], version: res["version"]) 
-          @jr.save
-        end
+        # get sha by fetching the master
+        ref_url = "https://api.github.com/repos/#{gh[:user]}/#{gh[:repo]}/git/refs"
+        refs = HTTParty.get(ref_url, headers: {"User-Agent" => "Jr", "Cache-Control" => "no-cache, no-store, max-age=0, must-revalidate"})
+        puts "## ref_response = #{refs}"
 
-        respond_to do |format|
-          format.html { redirect_to jrs_url, notice: 'Jr was successfully created.' }
-          format.json { render :show, status: :created, location: @jr }
+        m = refs.select{ |ref| ref["ref"] == "refs/heads/master" }
+        if m.count > 0
+          master = m[0]
+          sha = master["object"]["sha"]
+          version = res["version"].to_s
+          puts "sha = #{sha}"
+
+          if @jr
+            @jr.update_attributes(name: res["name"], platform: res["platform"].downcase, description: res["description"], classname: res["classname"], version: version, sha: sha)
+          else
+            @jr = Jr.new(url: jr_params[:url], name: res["name"], platform: res["platform"].downcase, description: res["description"], classname: res["classname"], version: res["version"], sha: sha)
+            @jr.save
+          end
+          respond_to do |format|
+            format.html { redirect_to jrs_url, notice: 'Jr was successfully created.' }
+            format.json { render :show, status: :created, location: @jr }
+          end
+        else
+          respond_to do |format|
+            format.html { render json: {errors: ["the url must be a valid github repo url. Example: 'https://github.com/gliechtenstein/demoaction'"]}, status: :unprocessable_entity }
+            format.json { render json: {errors: ["the url must be a valid github repo url. Example: 'https://github.com/gliechtenstein/demoaction'"]}, status: :unprocessable_entity }
+          end
         end
       end
     else
