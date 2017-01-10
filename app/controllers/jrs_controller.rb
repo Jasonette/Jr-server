@@ -132,8 +132,8 @@ class JrsController < ApplicationController
       if reasons.count > 0
         # invalid
         respond_to do |format|
-          format.html { render json: {errors: reasons}, status: :unprocessable_entity }
-          format.json { render json: {errors: reasons}, status: :unprocessable_entity }
+          format.html { render json: {jr: res, errors: reasons}, status: :unprocessable_entity }
+          format.json { render json: {jr: res, errors: reasons}, status: :unprocessable_entity }
         end
       else
         # valid
