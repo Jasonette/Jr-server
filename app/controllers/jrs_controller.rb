@@ -114,33 +114,40 @@ class JrsController < ApplicationController
         format.json { render json: {errors: ["cannot register that url. Use your own github url. Example: 'https://github.com/gliechtenstein/demoaction'"]}, status: :unprocessable_entity }
       end
     else
-      org = "JasonExtension"
-      name = "#{gh[:user]}_#{gh[:repo]}"
-      git_url = "https://github.com/#{gh[:user]}/#{gh[:repo]}.git"
-      registry_git_url = "https://github.com/#{org}/#{name}.git"
 
-      # 1. if file exists, delete it first
-      if File.exists? "/tmp/#{name}"
-        FileUtils.remove_dir "/tmp/#{name}"
-      end
+      repo_info_url = "https://api.github.com/repos/#{gh[:user]}/#{gh[:repo]}"
+      repo_info = HTTParty.get(ref_url, headers: {"User-Agent" => "Jr", "Cache-Control" => "no-cache, no-store, max-age=0, must-revalidate"})
+      if repo_info.has_key? "parent"
+        reasons = ["The repository must be independent and not a fork of another repository"]
+      else
+        org = "JasonExtension"
+        name = "#{gh[:user]}_#{gh[:repo]}"
+        git_url = "https://github.com/#{gh[:user]}/#{gh[:repo]}.git"
+        registry_git_url = "https://github.com/#{org}/#{name}.git"
 
-      # 2. clone
-      g = Git.clone(git_url, name, :path => '/tmp')
-
-      if File.exist?("/tmp/#{name}/jr.json")
-        file = File.read("/tmp/#{name}/jr.json")
-        res = JSON.parse(file)
-        readme_filename = Dir.entries("/tmp/#{name}").find { |f| f.downcase == 'readme.md' }
-        readme = ""
-        if readme_filename
-          readme = File.read("/tmp/#{name}/#{readme_filename}")
+        # 1. if file exists, delete it first
+        if File.exists? "/tmp/#{name}"
+          FileUtils.remove_dir "/tmp/#{name}"
         end
 
-        @jr = Jr.find_by(url: jr_params[:url])
+        # 2. clone
+        g = Git.clone(git_url, name, :path => '/tmp')
 
-        reasons = validate(res, @jr)
-      else
-        reasons = ["The repository needs to contain a 'jr.json' file in the root folder."]
+        if File.exist?("/tmp/#{name}/jr.json")
+          file = File.read("/tmp/#{name}/jr.json")
+          res = JSON.parse(file)
+          readme_filename = Dir.entries("/tmp/#{name}").find { |f| f.downcase == 'readme.md' }
+          readme = ""
+          if readme_filename
+            readme = File.read("/tmp/#{name}/#{readme_filename}")
+          end
+
+          @jr = Jr.find_by(url: jr_params[:url])
+
+          reasons = validate(res, @jr)
+        else
+          reasons = ["The repository needs to contain a 'jr.json' file in the root folder."]
+        end
       end
 
       if reasons.count > 0
@@ -157,8 +164,6 @@ class JrsController < ApplicationController
         # get sha by fetching the master
         ref_url = "https://api.github.com/repos/#{gh[:user]}/#{gh[:repo]}/git/refs"
         refs = HTTParty.get(ref_url, headers: {"User-Agent" => "Jr", "Cache-Control" => "no-cache, no-store, max-age=0, must-revalidate"})
-
-        puts "REFS = #{refs.inspect}"
 
         m = refs.select{ |ref| ref["ref"] == "refs/heads/master" }
         if m.count > 0
