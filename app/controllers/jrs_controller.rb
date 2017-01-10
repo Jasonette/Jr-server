@@ -26,7 +26,7 @@ class JrsController < ApplicationController
 
   def github(url)
     m = /github\.com\/([^\/]+)\/([^\/]+)/.match(url)
-    if m.length == 3
+    if m and m.length == 3
       return {user: m[1], repo: m[2]}
     else
       return nil
