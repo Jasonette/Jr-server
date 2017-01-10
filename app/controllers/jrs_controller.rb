@@ -149,25 +149,11 @@ class JrsController < ApplicationController
         client = Octokit::Client.new :access_token => ENV["GH_TOKEN"]
         user = client.user
 
-        if @jr
-          # if already exists, delete the registry repo first
-          repo_name_to_delete = "https://github.com/JasonExtension/#{gh[:user]}_#{gh[:repo]}"
-          repo_to_delete = Octokit::Repository.from_url repo_name_to_delete
-          client.delete_repository repo_to_delete
-        end
-
-        # fork
-        repo = Octokit::Repository.from_url jr_params[:url]
-        forked = client.fork repo, :organization => "JasonExtension"
-
-        # rename the repo to avoid redundancy
-        # JasonExtension/JasonDemoAction becomes JasonExtension/gliechtenstein_JasonDemoAction 
-        repo = Octokit::Repository.from_url forked[:html_url]
-        edited = client.edit repo, :name => "#{forked['parent']['owner']['login']}_#{forked["name"]}"
-
         # get sha by fetching the master
         ref_url = "https://api.github.com/repos/#{gh[:user]}/#{gh[:repo]}/git/refs"
         refs = HTTParty.get(ref_url, headers: {"User-Agent" => "Jr", "Cache-Control" => "no-cache, no-store, max-age=0, must-revalidate"})
+
+        puts "REFS = #{refs.inspect}"
 
         m = refs.select{ |ref| ref["ref"] == "refs/heads/master" }
         if m.count > 0
@@ -176,11 +162,26 @@ class JrsController < ApplicationController
           version = res["version"].to_s
 
           if @jr
+            # if already exists, update ref
+            repo_url_to_update = "https://github.com/JasonExtension/#{gh[:user]}_#{gh[:repo]}"
+            repo = Octokit::Repository.from_url repo_url_to_update
+            client.update_ref repo, "heads/master", sha
+
             @jr.update_attributes(name: res["name"], platform: res["platform"].downcase, description: res["description"], classname: res["classname"], version: version, sha: sha, readme: readme)
           else
+            # if new, fork
+            repo = Octokit::Repository.from_url jr_params[:url]
+            forked = client.fork repo, :organization => "JasonExtension"
+
+            # rename the repo to avoid redundancy
+            # JasonExtension/JasonDemoAction becomes JasonExtension/gliechtenstein_JasonDemoAction 
+            repo = Octokit::Repository.from_url forked[:html_url]
+            edited = client.edit repo, :name => "#{forked['parent']['owner']['login']}_#{forked["name"]}"
+
             @jr = Jr.new(url: jr_params[:url], name: res["name"], platform: res["platform"].downcase, description: res["description"], classname: res["classname"], version: res["version"], sha: sha, readme: readme)
             @jr.save
           end
+
           respond_to do |format|
             format.html { redirect_to jrs_url, notice: 'Jr was successfully created.' }
             format.json { render :show, status: :created, location: @jr }
