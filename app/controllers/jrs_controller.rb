@@ -117,7 +117,9 @@ class JrsController < ApplicationController
 
       repo_info_url = "https://api.github.com/repos/#{gh[:user]}/#{gh[:repo]}"
       repo_info = HTTParty.get(repo_info_url, headers: {"User-Agent" => "Jr", "Cache-Control" => "no-cache, no-store, max-age=0, must-revalidate"})
-      if repo_info.has_key? "parent"
+      if not repo_info.has_key? "id"
+        reasons = ["The repository doesn't exist"]
+      elsif repo_info.has_key? "parent"
         reasons = ["The repository must be independent and not a fork of another repository"]
       else
         org = "JasonExtension"
