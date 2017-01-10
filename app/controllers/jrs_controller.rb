@@ -126,18 +126,23 @@ class JrsController < ApplicationController
 
       # 2. clone
       g = Git.clone(git_url, name, :path => '/tmp')
-      file = File.read("/tmp/#{name}/jr.json")
-      res = JSON.parse(file)
 
-      readme_filename = Dir.entries("/tmp/#{name}").find { |f| f.downcase == 'readme.md' }
-      readme = ""
-      if readme_filename
-        readme = File.read("/tmp/#{name}/#{readme_filename}")
+      if File.exist?("/tmp/#{name}/jr.json")
+        file = File.read("/tmp/#{name}/jr.json")
+        res = JSON.parse(file)
+        readme_filename = Dir.entries("/tmp/#{name}").find { |f| f.downcase == 'readme.md' }
+        readme = ""
+        if readme_filename
+          readme = File.read("/tmp/#{name}/#{readme_filename}")
+        end
+
+        @jr = Jr.find_by(url: jr_params[:url])
+
+        reasons = validate(res, @jr)
+      else
+        reasons = ["The repository needs to contain a 'jr.json' file in the root folder."]
       end
 
-			@jr = Jr.find_by(url: jr_params[:url])
-
-      reasons = validate(res, @jr)
       if reasons.count > 0
         # invalid
         respond_to do |format|
@@ -164,27 +169,39 @@ class JrsController < ApplicationController
           if @jr
             # if already exists, update ref
             repo_url_to_update = "https://github.com/JasonExtension/#{gh[:user]}_#{gh[:repo]}"
+            puts "repo_url_to_update = #{repo_url_to_update}"
             repo = Octokit::Repository.from_url repo_url_to_update
             client.update_ref repo, "heads/master", sha
 
             @jr.update_attributes(name: res["name"], platform: res["platform"].downcase, description: res["description"], classname: res["classname"], version: version, sha: sha, readme: readme)
+            respond_to do |format|
+              format.html { redirect_to jrs_url, notice: 'Jr was successfully updated.' }
+              format.json { render :show, status: :updated, location: @jr }
+            end
           else
             # if new, fork
             repo = Octokit::Repository.from_url jr_params[:url]
             forked = client.fork repo, :organization => "JasonExtension"
+            puts "forked = #{forked.inspect}"
 
             # rename the repo to avoid redundancy
             # JasonExtension/JasonDemoAction becomes JasonExtension/gliechtenstein_JasonDemoAction 
             repo = Octokit::Repository.from_url forked[:html_url]
-            edited = client.edit repo, :name => "#{forked['parent']['owner']['login']}_#{forked["name"]}"
+            begin
+              edited = client.edit repo, :name => "#{forked['parent']['owner']['login']}_#{forked["name"]}"
 
-            @jr = Jr.new(url: jr_params[:url], name: res["name"], platform: res["platform"].downcase, description: res["description"], classname: res["classname"], version: res["version"], sha: sha, readme: readme)
-            @jr.save
-          end
-
-          respond_to do |format|
-            format.html { redirect_to jrs_url, notice: 'Jr was successfully created.' }
-            format.json { render :show, status: :created, location: @jr }
+              @jr = Jr.new(url: jr_params[:url], name: res["name"], platform: res["platform"].downcase, description: res["description"], classname: res["classname"], version: res["version"], sha: sha, readme: readme)
+              @jr.save
+              respond_to do |format|
+                format.html { redirect_to jrs_url, notice: 'Jr was successfully created.' }
+                format.json { render :show, status: :created, location: @jr }
+              end
+            rescue
+              respond_to do |format|
+                format.html { render json: {action: "retry", errors: ["Please retry"]}, status: :unprocessable_entity }
+                format.html { render json: {action: "retry", errors: ["Please retry"]}, status: :unprocessable_entity }
+              end
+            end
           end
         else
           respond_to do |format|
