@@ -103,8 +103,17 @@ class JrsController < ApplicationController
   # POST /jrs.json
   def create
     gh = github(jr_params[:url])
-    if gh
-
+    if not gh
+      respond_to do |format|
+        format.html { render json: {errors: ["the url must be a valid github repo url. Example: 'https://github.com/gliechtenstein/demoaction'"]}, status: :unprocessable_entity }
+        format.json { render json: {errors: ["the url must be a valid github repo url. Example: 'https://github.com/gliechtenstein/demoaction'"]}, status: :unprocessable_entity }
+      end
+    elsif gh and gh[:user].downcase == "jasonextension"
+      respond_to do |format|
+        format.html { render json: {errors: ["cannot register that url. Use your own github url. Example: 'https://github.com/gliechtenstein/demoaction'"]}, status: :unprocessable_entity }
+        format.json { render json: {errors: ["cannot register that url. Use your own github url. Example: 'https://github.com/gliechtenstein/demoaction'"]}, status: :unprocessable_entity }
+      end
+    else
       org = "JasonExtension"
       name = "#{gh[:user]}_#{gh[:repo]}"
       git_url = "https://github.com/#{gh[:user]}/#{gh[:repo]}.git"
@@ -120,21 +129,11 @@ class JrsController < ApplicationController
       file = File.read("/tmp/#{name}/jr.json")
       res = JSON.parse(file)
 
-      puts Dir.entries("/tmp/#{name}").inspect
-
       readme_filename = Dir.entries("/tmp/#{name}").find { |f| f.downcase == 'readme.md' }
-      puts "#readme_filename = #{readme_filename}"
       readme = ""
       if readme_filename
         readme = File.read("/tmp/#{name}/#{readme_filename}")
       end
-      puts "readme content = #{readme}"
-
-
-      #json_url = "https://raw.githubusercontent.com/#{gh[:user]}/#{gh[:repo]}/master/jr.json?#{Time.now.to_i}"
-      #response = HTTParty.get(json_url, headers: {"Cache-Control" => "no-cache, no-store, max-age=0, must-revalidate"})
-      #puts "RESPONSE = #{response.inspect}"
-      #res = JSON.parse(response)
 
 			@jr = Jr.find_by(url: jr_params[:url])
 
@@ -171,7 +170,6 @@ class JrsController < ApplicationController
         refs = HTTParty.get(ref_url, headers: {"User-Agent" => "Jr", "Cache-Control" => "no-cache, no-store, max-age=0, must-revalidate"})
 
         m = refs.select{ |ref| ref["ref"] == "refs/heads/master" }
-        puts "m  = #{m}"
         if m.count > 0
           master = m[0]
           sha = master["object"]["sha"]
@@ -193,11 +191,6 @@ class JrsController < ApplicationController
             format.json { render json: {errors: ["something went wrong. the url must be a valid github repo url. Example: 'https://github.com/gliechtenstein/demoaction'"]}, status: :unprocessable_entity }
           end
         end
-      end
-    else
-      respond_to do |format|
-        format.html { render json: {errors: ["the url must be a valid github repo url. Example: 'https://github.com/gliechtenstein/demoaction'"]}, status: :unprocessable_entity }
-        format.json { render json: {errors: ["the url must be a valid github repo url. Example: 'https://github.com/gliechtenstein/demoaction'"]}, status: :unprocessable_entity }
       end
     end
 
