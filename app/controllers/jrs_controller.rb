@@ -102,7 +102,6 @@ class JrsController < ApplicationController
   # POST /jrs
   # POST /jrs.json
   def create
-    puts jr_params[:name]
     gh = github(jr_params[:url])
     if gh
 
@@ -120,6 +119,17 @@ class JrsController < ApplicationController
       g = Git.clone(git_url, name, :path => '/tmp')
       file = File.read("/tmp/#{name}/jr.json")
       res = JSON.parse(file)
+
+      puts Dir.entries("/tmp/#{name}").inspect
+
+      readme_filename = Dir.entries("/tmp/#{name}").find { |f| f.downcase == 'readme.md' }
+      puts "#readme_filename = #{readme_filename}"
+      readme = ""
+      if readme_filename
+        readme = File.read("/tmp/#{name}/#{readme_filename}")
+      end
+      puts "readme content = #{readme}"
+
 
       #json_url = "https://raw.githubusercontent.com/#{gh[:user]}/#{gh[:repo]}/master/jr.json?#{Time.now.to_i}"
       #response = HTTParty.get(json_url, headers: {"Cache-Control" => "no-cache, no-store, max-age=0, must-revalidate"})
@@ -139,7 +149,6 @@ class JrsController < ApplicationController
         # valid
         client = Octokit::Client.new :access_token => ENV["GH_TOKEN"]
         user = client.user
-        puts user.login
 
         if @jr
           # if already exists, delete the registry repo first
@@ -151,30 +160,27 @@ class JrsController < ApplicationController
         # fork
         repo = Octokit::Repository.from_url jr_params[:url]
         forked = client.fork repo, :organization => "JasonExtension"
-        puts "Forked = #{forked.inspect}"
 
         # rename the repo to avoid redundancy
         # JasonExtension/JasonDemoAction becomes JasonExtension/gliechtenstein_JasonDemoAction 
         repo = Octokit::Repository.from_url forked[:html_url]
         edited = client.edit repo, :name => "#{forked['parent']['owner']['login']}_#{forked["name"]}"
-        puts "Edited = #{edited.inspect}"
 
         # get sha by fetching the master
         ref_url = "https://api.github.com/repos/#{gh[:user]}/#{gh[:repo]}/git/refs"
         refs = HTTParty.get(ref_url, headers: {"User-Agent" => "Jr", "Cache-Control" => "no-cache, no-store, max-age=0, must-revalidate"})
-        puts "## ref_response = #{refs}"
 
         m = refs.select{ |ref| ref["ref"] == "refs/heads/master" }
+        puts "m  = #{m}"
         if m.count > 0
           master = m[0]
           sha = master["object"]["sha"]
           version = res["version"].to_s
-          puts "sha = #{sha}"
 
           if @jr
-            @jr.update_attributes(name: res["name"], platform: res["platform"].downcase, description: res["description"], classname: res["classname"], version: version, sha: sha)
+            @jr.update_attributes(name: res["name"], platform: res["platform"].downcase, description: res["description"], classname: res["classname"], version: version, sha: sha, readme: readme)
           else
-            @jr = Jr.new(url: jr_params[:url], name: res["name"], platform: res["platform"].downcase, description: res["description"], classname: res["classname"], version: res["version"], sha: sha)
+            @jr = Jr.new(url: jr_params[:url], name: res["name"], platform: res["platform"].downcase, description: res["description"], classname: res["classname"], version: res["version"], sha: sha, readme: readme)
             @jr.save
           end
           respond_to do |format|
@@ -183,8 +189,8 @@ class JrsController < ApplicationController
           end
         else
           respond_to do |format|
-            format.html { render json: {errors: ["the url must be a valid github repo url. Example: 'https://github.com/gliechtenstein/demoaction'"]}, status: :unprocessable_entity }
-            format.json { render json: {errors: ["the url must be a valid github repo url. Example: 'https://github.com/gliechtenstein/demoaction'"]}, status: :unprocessable_entity }
+            format.html { render json: {errors: ["something went wrong. the url must be a valid github repo url. Example: 'https://github.com/gliechtenstein/demoaction'"]}, status: :unprocessable_entity }
+            format.json { render json: {errors: ["something went wrong. the url must be a valid github repo url. Example: 'https://github.com/gliechtenstein/demoaction'"]}, status: :unprocessable_entity }
           end
         end
       end
