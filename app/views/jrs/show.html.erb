@@ -1,3 +1,13 @@
+<script src='https://cdnjs.cloudflare.com/ajax/libs/showdown/1.6.0/showdown.min.js'></script>
+<script>
+$(function(){
+  var converter = new showdown.Converter();
+  var text = $(".readme").text();
+  var html = converter.makeHtml(text);
+  $(".generated").html(html);
+});
+
+</script>
 <p id="notice"><%= notice %></p>
 
 <p>
@@ -29,6 +39,9 @@
   <strong>Version:</strong>
   <%= @jr.version %>
 </p>
+
+<div class='readme'><%= @jr.readme %></div>
+<div class='generated'></div>
 
 <%= link_to 'Edit', edit_jr_path(@jr) %> |
 <%= link_to 'Back', jrs_path %>
