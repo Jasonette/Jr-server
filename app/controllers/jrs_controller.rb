@@ -4,7 +4,7 @@ class JrsController < ApplicationController
   # GET /jrs
   # GET /jrs.json
   def index
-    @jrs = Jr.all
+    @jrs = Jr.order(updated_at: :desc).limit(10)
   end
 
   # GET /jrs/1
