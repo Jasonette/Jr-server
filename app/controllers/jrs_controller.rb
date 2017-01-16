@@ -78,9 +78,9 @@ class JrsController < ApplicationController
       begin
         new_version = Semantic::Version.new res["version"].to_s
         if senior
-          old_version = Semantic::Version.new senior["version"].to_s
+          old_version = Semantic::Version.new senior["v"].to_s
           if new_version <= old_version
-            reasons.push "the 'version' must be greater than the last version: #{senior['version']}"
+            reasons.push "the 'version' must be greater than the last version: #{senior['v']}"
           end
         end
       rescue
@@ -173,6 +173,7 @@ class JrsController < ApplicationController
           master = m[0]
           sha = master["object"]["sha"]
           version = res["version"].to_s
+          puts "version = #{version}"
 
           forked_url = "https://github.com/JasonExtension/#{gh[:user]}_#{gh[:repo]}"
 
@@ -181,10 +182,10 @@ class JrsController < ApplicationController
             repo = Octokit::Repository.from_url forked_url
             client.update_ref repo, "heads/master", sha
 
-            @jr.update_attributes(name: res["name"], platform: res["platform"].downcase, description: res["description"], classname: res["classname"], version: version, sha: sha, readme: readme)
+            @jr.update_attributes(name: res["name"], platform: res["platform"].downcase, description: res["description"], classname: res["classname"], v: version, sha: sha, readme: readme)
             respond_to do |format|
               format.html { redirect_to jrs_url, notice: 'Jr was successfully updated.' }
-              format.json { render :show, status: :updated, location: @jr }
+              format.json { render :show, location: @jr }
             end
           else
             # if new, fork
@@ -196,13 +197,13 @@ class JrsController < ApplicationController
             # JasonExtension/JasonDemoAction becomes JasonExtension/gliechtenstein_JasonDemoAction 
             repo = Octokit::Repository.from_url forked[:html_url]
             begin
-              edited = client.edit repo, :name => "#{forked['parent']['owner']['login']}_#{forked["name"]}"
+              edited = client.edit repo, :name => "#{gh[:user]}_#{gh[:repo]}"
 
-              @jr = Jr.new(original_url: jr_params[:original_url], forked_url: forked_url, name: res["name"], platform: res["platform"].downcase, description: res["description"], classname: res["classname"], version: res["version"], sha: sha, readme: readme)
+              @jr = Jr.new(original_url: jr_params[:original_url], forked_url: forked_url, name: res["name"], platform: res["platform"].downcase, description: res["description"], classname: res["classname"], v: version, sha: sha, readme: readme)
               @jr.save
               respond_to do |format|
                 format.html { redirect_to jrs_url, notice: 'Jr was successfully created.' }
-                format.json { render :show, status: :created, location: @jr }
+                format.json { render :show, location: @jr }
               end
             rescue
               respond_to do |format|
@@ -254,6 +255,6 @@ class JrsController < ApplicationController
 
     # Never trust parameters from the scary internet, only allow the white list through.
     def jr_params
-      params.require(:jr).permit(:name, :original_url, :forked_url, :description, :platform, :classname, :version)
+      params.require(:jr).permit(:name, :original_url, :forked_url, :description, :platform, :classname, :v)
     end
 end
