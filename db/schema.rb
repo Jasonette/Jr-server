@@ -10,20 +10,21 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20170110100716) do
+ActiveRecord::Schema.define(version: 20170116152548) do
 
   create_table "jrs", force: :cascade do |t|
     t.string   "name"
-    t.string   "url"
+    t.string   "original_url"
     t.string   "description"
     t.string   "platform"
     t.string   "classname"
     t.string   "version"
-    t.datetime "created_at",  null: false
-    t.datetime "updated_at",  null: false
+    t.datetime "created_at",   null: false
+    t.datetime "updated_at",   null: false
     t.text     "sha"
     t.text     "readme"
-    t.index ["url"], name: "index_jrs_on_url", unique: true
+    t.string   "forked_url"
+    t.index ["original_url"], name: "index_jrs_on_original_url", unique: true
   end
 
   create_table "pg_search_documents", force: :cascade do |t|

@@ -11,7 +11,8 @@
   <thead>
     <tr>
       <th>Name</th>
-      <th>Url</th>
+      <th>Original Url</th>
+      <th>Forked Url</th>
       <th>Description</th>
       <th>Platform</th>
       <th>Classname</th>
@@ -24,7 +25,8 @@
     <% @jrs.each do |jr| %>
       <tr>
         <td><%= jr.name %></td>
-        <td><%= jr.url %></td>
+        <td><%= jr.original_url %></td>
+        <td><%= jr.forked_url %></td>
         <td><%= jr.description %></td>
         <td><%= jr.platform %></td>
         <td><%= jr.classname %></td>

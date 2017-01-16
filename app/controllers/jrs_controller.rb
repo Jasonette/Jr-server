@@ -102,7 +102,7 @@ class JrsController < ApplicationController
   # POST /jrs
   # POST /jrs.json
   def create
-    gh = github(jr_params[:url])
+    gh = github(jr_params[:original_url])
     if not gh
       respond_to do |format|
         format.html { render json: {errors: ["the url must be a valid github repo url. Example: 'https://github.com/gliechtenstein/demoaction'"]}, status: :unprocessable_entity }
@@ -145,7 +145,7 @@ class JrsController < ApplicationController
             readme = File.read("/tmp/#{name}/#{readme_filename}")
           end
 
-          @jr = Jr.find_by(url: jr_params[:url])
+          @jr = Jr.find_by(original_url: jr_params[:original_url])
 
           reasons = validate(res, @jr)
         else
@@ -174,11 +174,11 @@ class JrsController < ApplicationController
           sha = master["object"]["sha"]
           version = res["version"].to_s
 
+          forked_url = "https://github.com/JasonExtension/#{gh[:user]}_#{gh[:repo]}"
+
           if @jr
             # if already exists, update ref
-            repo_url_to_update = "https://github.com/JasonExtension/#{gh[:user]}_#{gh[:repo]}"
-            puts "repo_url_to_update = #{repo_url_to_update}"
-            repo = Octokit::Repository.from_url repo_url_to_update
+            repo = Octokit::Repository.from_url forked_url
             client.update_ref repo, "heads/master", sha
 
             @jr.update_attributes(name: res["name"], platform: res["platform"].downcase, description: res["description"], classname: res["classname"], version: version, sha: sha, readme: readme)
@@ -188,7 +188,7 @@ class JrsController < ApplicationController
             end
           else
             # if new, fork
-            repo = Octokit::Repository.from_url jr_params[:url]
+            repo = Octokit::Repository.from_url jr_params[:original_url]
             forked = client.fork repo, :organization => "JasonExtension"
             puts "forked = #{forked.inspect}"
 
@@ -198,7 +198,7 @@ class JrsController < ApplicationController
             begin
               edited = client.edit repo, :name => "#{forked['parent']['owner']['login']}_#{forked["name"]}"
 
-              @jr = Jr.new(url: jr_params[:url], name: res["name"], platform: res["platform"].downcase, description: res["description"], classname: res["classname"], version: res["version"], sha: sha, readme: readme)
+              @jr = Jr.new(original_url: jr_params[:original_url], forked_url: forked_url, name: res["name"], platform: res["platform"].downcase, description: res["description"], classname: res["classname"], version: res["version"], sha: sha, readme: readme)
               @jr.save
               respond_to do |format|
                 format.html { redirect_to jrs_url, notice: 'Jr was successfully created.' }
@@ -254,6 +254,6 @@ class JrsController < ApplicationController
 
     # Never trust parameters from the scary internet, only allow the white list through.
     def jr_params
-      params.require(:jr).permit(:name, :url, :description, :platform, :classname, :version)
+      params.require(:jr).permit(:name, :original_url, :forked_url, :description, :platform, :classname, :version)
     end
 end
